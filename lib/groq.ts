@@ -32,7 +32,10 @@ async function chat(system: string, user: string, options: ChatOptions = {}) {
         reasoning_effort: options.reasoningEffort ?? "low",
         include_reasoning: false,
         messages: [{ role: "system", content: system }, { role: "user", content: user }],
-        ...(options.browserSearch ? { tools: [{ type: "browser_search" }] } : {}),
+        ...(options.browserSearch ? {
+          tool_choice: "required",
+          tools: [{ type: "browser_search" }],
+        } : {}),
       };
 
       const response = await fetch(`${GROQ_BASE_URL}/chat/completions`, {
