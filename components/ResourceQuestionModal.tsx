@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import type { Locale } from "@/lib/i18n";
+import VoiceInputButton from "./VoiceInputButton";
 
 function formatInline(text: string) {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, index) =>
@@ -71,13 +72,19 @@ export default function ResourceQuestionModal({
         <button className="modalClose" onClick={onClose} type="button" aria-label="Fermer">×</button>
       </header>
       <form className="contextQuestionForm" onSubmit={submit}>
-        <textarea
-          autoFocus
-          value={question}
-          onChange={(event) => setQuestion(event.target.value)}
-          placeholder={locale === "fr" ? "Ex. Pourquoi applique-t-on ce plafond ? Comment traiter ce cas en paie aujourd’hui ?" : "Ask a precise question about this topic…"}
-          rows={4}
-        />
+        <div className="voiceField">
+          <textarea
+            autoFocus
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+            placeholder={locale === "fr" ? "Ex. Pourquoi applique-t-on ce plafond ? Comment traiter ce cas en paie aujourd’hui ?" : "Ask a precise question about this topic…"}
+            rows={4}
+          />
+          <VoiceInputButton
+            locale={locale}
+            onTranscript={(text) => setQuestion((current) => current.trim() ? `${current.trim()} ${text}` : text)}
+          />
+        </div>
         <button className="primary" disabled={loading || !question.trim()}>{loading ? "Païa réfléchit…" : (locale === "fr" ? "Obtenir une réponse structurée" : "Get a structured answer")}</button>
       </form>
       {error && <p className="notice error">{error}</p>}
