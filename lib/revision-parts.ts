@@ -34,8 +34,8 @@ export async function prepareRevisionParts(resourceCode: string, groupsPerPart =
   await getPool().query(
     `
       UPDATE campus_paia.resource_revision_parts
-      SET content='', status='pending', attempts=0, last_error=NULL, generated_at=NULL, format_version=8, updated_at=now()
-      WHERE resource_code=$1 AND format_version < 8
+      SET content='', status='pending', attempts=0, last_error=NULL, generated_at=NULL, format_version=9, updated_at=now()
+      WHERE resource_code=$1 AND format_version < 9
     `,
     [resourceCode],
   );
@@ -127,7 +127,7 @@ export async function completeRevisionPart(resourceCode: string, partIndex: numb
   await getPool().query(
     `
       UPDATE campus_paia.resource_revision_parts
-      SET content=$3, status='done', last_error=NULL, generated_at=now(), format_version=8, updated_at=now()
+      SET content=$3, status='done', last_error=NULL, generated_at=now(), format_version=9, updated_at=now()
       WHERE resource_code=$1 AND part_index=$2
     `,
     [resourceCode, partIndex, safe],
