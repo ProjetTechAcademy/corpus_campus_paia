@@ -74,7 +74,7 @@ async function chat(system: string, user: string, options: ChatOptions = {}) {
 
 const OFFICIAL_SOURCE_RULES_FR = [
   "Pour toute vérification d'actualité, juridique, réglementaire, sociale, fiscale, RH, paie, sécurité sociale, RGPD, cybersécurité ou administrative, recherche sur le web si nécessaire.",
-  "La preuve finale doit provenir d'une source officielle ou institutionnelle compétente : Légifrance, BOSS, Urssaf, Net-entreprises, Assurance Maladie/Ameli, Service-Public.fr, ministère compétent, impots.gouv.fr, INSEE, France Travail, CNIL, ANSSI/cyber.gouv.fr, EUR-Lex ou autre organisme public compétent.",
+  "La preuve finale doit provenir d'une source primaire officielle adaptée au sujet : Légifrance, BOSS, Urssaf, Net-entreprises, Assurance Maladie/Ameli, Service-Public.fr, ministère compétent, impots.gouv.fr, INSEE, France Travail, CNIL, ANSSI/cyber.gouv.fr, EUR-Lex ou autre organisme public compétent. Pour un logiciel, une technologie, une norme ou un produit, utilise la documentation officielle de l'éditeur, du projet ou de l'organisme normatif compétent.",
   "Un blog, cabinet, organisme de formation, forum, Wikipédia, article SEO ou site commercial peut éventuellement orienter une recherche mais ne doit jamais être cité comme preuve finale.",
   "Si aucune source officielle concluante n'est trouvée, écris clairement que la vérification est non concluante. N'invente ni règle, ni date, ni lien.",
 ].join(" ");
@@ -329,7 +329,9 @@ export async function generateRevisionPartWithGroq(input: {
       `La date de vérification est ${today}.`,
       "Si une donnée de la base interne est dépassée ou nécessite une précision actuelle, insère immédiatement après le point concerné un bloc :::update ... :::endupdate avec la date, la règle actuelle, l'impact pratique et la source officielle directe.",
       "Si elle est confirmée et que cela apporte une vraie valeur, utilise :::current ... :::endcurrent.",
-      "Structure locale recommandée : ### 🧠 Connaissances essentielles, ### ⚙️ Application / méthode, ### ⚠️ Vigilances et exceptions, ### 📖 Termes utiles, selon ce qui existe réellement dans la source.",
+      "Utilise exactement ces rubriques locales lorsqu'elles sont pertinentes : ### 🧠 Connaissances essentielles ; ### ⚙️ Application / méthode ; ### 🎯 Exemple / cas / calcul ; ### ⚠️ Vigilances et exceptions ; ### 📖 Termes utiles ; ### ✅ À retenir.",
+      "La rubrique ### 🎯 Exemple / cas / calcul n'apparaît que si un exemple, cas ou calcul est réellement présent dans les analyses internes, ou si un exemple pédagogique est indispensable pour expliquer une règle déjà établie. Dans ce dernier cas, indique clairement 'Exemple pédagogique PAÏA'.",
+      "La rubrique ### ✅ À retenir contient 2 à 5 points maximum, strictement issus de cette partie.",
       "N'ajoute ni exercice laissé au lecteur, ni référence à une formation, ni référence à la plateforme d'origine.",
       "Rends uniquement cette partie en Markdown, sans titre global # FICHE PAÏA.",
     ].join(" "),
