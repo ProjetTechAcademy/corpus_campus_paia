@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revisionWithGroq } from "@/lib/groq";
 import { completedRevisionParts, prepareRevisionParts, revisionPartStatus } from "@/lib/revision-parts";
+import { assembleRevisionSheet } from "@/lib/revision-assembly";
 import { getQdrantResourceChunks } from "@/lib/qdrant";
 import { getResourceLinks } from "@/lib/resource-links";
 import { extractTextFromFile } from "@/lib/file-text";
@@ -86,19 +87,7 @@ export async function POST(request: NextRequest) {
         const partStatus = await revisionPartStatus(resourceCode);
         if (partStatus.total > 0 && partStatus.done === partStatus.total) {
           const parts = await completedRevisionParts(resourceCode);
-          content = [
-            `# FICHE PAÏA — ${title}`,
-            "",
-            "## 🧠 Le pur jus",
-            "",
-            ...parts.flatMap((part, index) => [
-              `### Partie ${index + 1}`,
-              part.content,
-              "",
-            ]),
-            "## ✅ À retenir",
-            "Cette fiche est construite à partir des connaissances validées dans les différentes parties ci-dessus et de leurs actualisations officielles intégrées au fil de la lecture.",
-          ].join("\n\n");
+          content = assembleRevisionSheet(title, parts, locale);
         }
       }
     } catch {
