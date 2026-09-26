@@ -384,6 +384,82 @@ export async function mergeSliceAnalysesWithGroq(input: {
   return result;
 }
 
+function normalizeSectionName(value: string) {
+  return value
+    .replace(/^#+\s*/, "")
+    .replace(/[🧠⚙️🎯⚠️📖✅💡🏛️⚖️🔎🧭]/gu, "")
+    .trim()
+    .toLowerCase();
+}
+
+function applyVerificationBlocks(draft: string, verification: string) {
+  const sourceLines = verification
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => /^Source officielle\s*:/i.test(line));
+
+  const blocks = new Map<string, string[]>();
+  const re = /@@SECTION:\s*([^\n]+)\n([\s\S]*?)@@END/gi;
+  for (const match of verification.matchAll(re)) {
+    const key = normalizeSectionName(match[1]);
+    const body = match[2].trim();
+    if (!key || !body) continue;
+    const current = blocks.get(key) ?? [];
+    current.push(body);
+    blocks.set(key, current);
+  }
+
+  if (!blocks.size) {
+    const cleaned = verification
+      .split("\n")
+      .filter((line) => !/^Source officielle\s*:/i.test(line))
+      .join("\n")
+      .trim();
+    if (cleaned && !/^NO_UPDATE$/i.test(cleaned)) {
+      blocks.set("vigilances et exceptions", [cleaned]);
+    }
+  }
+
+  const lines = draft.replace(/\r/g, "").split("\n");
+  const out: string[] = [];
+  let currentHeading = "";
+  let sectionBuffer: string[] = [];
+
+  const flush = () => {
+    if (!sectionBuffer.length) return;
+    out.push(...sectionBuffer);
+    const key = normalizeSectionName(currentHeading);
+    const additions = blocks.get(key) ?? [];
+    if (additions.length) {
+      out.push("", ...additions, "");
+      blocks.delete(key);
+    }
+    sectionBuffer = [];
+  };
+
+  for (const line of lines) {
+    if (/^###\s+/.test(line.trim())) {
+      flush();
+      currentHeading = line.trim();
+      sectionBuffer.push(line);
+    } else {
+      sectionBuffer.push(line);
+    }
+  }
+  flush();
+
+  const leftovers = [...blocks.values()].flat();
+  if (leftovers.length) {
+    out.push("", "### ⚠️ Vigilances et exceptions", "", ...leftovers);
+  }
+
+  if (sourceLines.length) {
+    out.push("", ...Array.from(new Set(sourceLines)));
+  }
+
+  return out.join("\n").replace(/\n{4,}/g, "\n\n\n").trim();
+}
+
 export async function generateRevisionPartWithGroq(input: {
   resourceCode: string;
   title: string;
@@ -396,45 +472,36 @@ export async function generateRevisionPartWithGroq(input: {
   const today = new Date().toISOString().slice(0, 10);
 
   if (locale === "en") {
-    return chat(
+    const sourceDraft = await chat(
       [
-        "Generate one self-contained section of a professional PAÏA knowledge sheet from the supplied internal source only.",
-        "Do not reveal private source provenance.",
-        "Keep all supported concepts, rules, steps, exceptions, figures, examples and terminology.",
-        "Use official primary sources for any current or time-sensitive verification.",
-        "Return only the section content, not the full document.",
+        "Generate one source-faithful section of a professional PAÏA knowledge sheet.",
+        "Use only the supplied internal analysis for the main content. Do not browse and do not update facts silently.",
+        "Keep private source provenance hidden.",
+        "Preserve all supported concepts, rules, steps, exceptions, figures, examples and terminology.",
+        "Use local headings only when relevant: ### 🧠 Essential knowledge; ### ⚙️ Application / method; ### 🎯 Example / case / calculation; ### ⚠️ Vigilance and exceptions; ### 📖 Useful terms; ### ✅ Key takeaways.",
       ].join(" "),
       `Topic: ${input.title}\nPart ${input.partIndex}/${input.totalParts}\n\nSOURCE:\n${input.source}`,
       {
         maxCompletionTokens: 1800,
-        browserSearch: true,
-        temperature: 0.05,
+        temperature: 0.04,
         reasoningEffort: "low",
         model: process.env.GROQ_FINAL_PART_MODEL || "openai/gpt-oss-20b",
         fallbackModel: "",
       },
     );
+    return sourceDraft;
   }
 
-  return chat(
+  const sourceDraft = await chat(
     [
-      "Tu rédiges UNE partie d'une Fiche PAÏA, pas la fiche complète.",
+      "Tu rédiges UNE partie source d'une Fiche PAÏA, pas la fiche complète.",
       PRIVACY_RULES_FR,
-      "Le contenu métier principal doit rester 100 % fidèle aux analyses internes fournies : ne perds aucun concept, règle, étape, condition, exception, chiffre, formule, exemple ou nuance utile.",
-      "La recherche web est une couche de vérification séparée : elle ne doit JAMAIS remplacer silencieusement une valeur, un terme, une règle, une méthode ou une formulation métier présente dans la base interne. Conserve l'information interne dans le corps principal, puis ajoute l'information actuelle dans un encart :::update ou :::current juste après le point concerné.",
-      "Exemple de séparation obligatoire : si la base interne emploie le terme « équipe » mais que la terminologie officielle actuelle est « Workspace », conserve « équipe » dans le corps source et ajoute immédiatement un encart de mise à jour indiquant le terme actuel.",
-      "Réorganise pour rendre la lecture fluide et professionnelle, mais n'invente rien.",
+      "Le contenu principal doit être 100 % fidèle aux analyses internes fournies. N'utilise aucune connaissance extérieure et ne consulte pas le web pendant cette première passe.",
+      "Ne perds aucun concept, règle, étape, condition, exception, chiffre, formule, exemple ou nuance utile.",
+      "Ne corrige jamais silencieusement une information même si elle te semble ancienne. Conserve la terminologie, les valeurs et les règles présentes dans la base interne.",
       "Développe chaque acronyme à sa première occurrence dans CETTE partie : terme complet (SIGLE). Explique brièvement le jargon utile.",
-      "Quand un élément est temporel, juridique, social, fiscal, paie/RH, sécurité sociale, RGPD, cybersécurité ou technique susceptible d'avoir évolué, vérifie son actualité sur une source officielle compétente.",
-      "Vérifie séparément chaque donnée sensible au temps : montant, taux, seuil, plafond, délai, date, nom d'un dispositif, nom d'un plan ou d'une offre, rôle, permission, fonctionnalité, version, procédure et terminologie officielle. Ne déclare jamais qu'un ensemble de règles est 'toujours valide' sans avoir contrôlé chaque point concerné.",
-      "Si la source interne emploie une ancienne appellation ou une ancienne règle encore compréhensible, conserve exactement cette information dans le corps source puis indique immédiatement l'appellation ou la règle actuelle dans un encart de mise à jour.",
-      "N'invente jamais une date d'entrée en vigueur, une date de renommage ou une date de changement. Si la source officielle consultée ne permet pas d'établir la date, écris explicitement « date d'évolution non déterminée par la source officielle consultée ».",
-      OFFICIAL_SOURCE_RULES_FR,
-      `La date de vérification est ${today}.`,
-      "Si une donnée de la base interne est dépassée ou nécessite une précision actuelle, insère IMMÉDIATEMENT après le point concerné un bloc sur des lignes séparées : :::update puis le contenu puis :::endupdate. Le contenu indique la date, l'ancienne information, la règle ou appellation actuelle, depuis quand si l'information est disponible, l'impact pratique et une source primaire directe.",
-      "Si une donnée sensible au temps est confirmée après vérification et que cela apporte une vraie valeur, utilise sur des lignes séparées :::current puis le contenu puis :::endcurrent. Un bloc :::current ne doit couvrir qu'un petit groupe de faits effectivement vérifiés.",
       "Utilise exactement ces rubriques locales lorsqu'elles sont pertinentes : ### 🧠 Connaissances essentielles ; ### ⚙️ Application / méthode ; ### 🎯 Exemple / cas / calcul ; ### ⚠️ Vigilances et exceptions ; ### 📖 Termes utiles ; ### ✅ À retenir.",
-      "La rubrique ### 🎯 Exemple / cas / calcul n'apparaît que si un exemple, cas ou calcul est réellement présent dans les analyses internes, ou si un exemple pédagogique est indispensable pour expliquer une règle déjà établie. Dans ce dernier cas, indique clairement 'Exemple pédagogique PAÏA'.",
+      "La rubrique ### 🎯 Exemple / cas / calcul n'apparaît que si un exemple, un cas ou un calcul est réellement présent dans les analyses internes. N'invente aucun exemple dans cette passe.",
       "La rubrique ### ✅ À retenir contient 2 à 5 points maximum, strictement issus de cette partie.",
       "N'ajoute ni exercice laissé au lecteur, ni référence à une formation, ni référence à la plateforme d'origine.",
       "Rends uniquement cette partie en Markdown, sans titre global # FICHE PAÏA.",
@@ -447,14 +514,55 @@ export async function generateRevisionPartWithGroq(input: {
       input.source,
     ].join("\n"),
     {
-      maxCompletionTokens: 1900,
-      browserSearch: true,
-      temperature: 0.05,
+      maxCompletionTokens: 1800,
+      temperature: 0.03,
       reasoningEffort: "low",
       model: process.env.GROQ_FINAL_PART_MODEL || "openai/gpt-oss-20b",
       fallbackModel: "",
     },
   );
+
+  const verification = await chat(
+    [
+      "Tu es l'auditeur d'actualité de Corpus Campus PAÏA.",
+      "Tu reçois un brouillon SOURCE qui doit rester intact. Ne le réécris pas, ne le résume pas et ne le répète pas.",
+      "Utilise obligatoirement la recherche web pour contrôler séparément toutes les informations sensibles au temps : montants, taux, seuils, plafonds, délais, dates, noms de dispositifs, noms d'offres ou de plans, rôles, permissions, fonctionnalités, versions, procédures et terminologie officielle.",
+      OFFICIAL_SOURCE_RULES_FR,
+      `Date de vérification : ${today}.`,
+      "Retourne UNIQUEMENT les encarts à insérer. S'il n'y a aucune vérification utile, retourne exactement NO_UPDATE.",
+      "Chaque encart doit être rattaché à l'une des rubriques exactes du brouillon avec ce format :",
+      "@@SECTION: Connaissances essentielles",
+      ":::update",
+      "**⚠️ MISE À JOUR — vérifiée le [date]**",
+      "*Information du brouillon : ...*",
+      "*Information actuelle : ...*",
+      "*Impact pratique : ...*",
+      "*Source officielle : [organisme/document]*",
+      ":::endupdate",
+      "@@END",
+      "Pour une information confirmée sans changement, utilise :::current ... :::endcurrent, mais uniquement si cette confirmation apporte une vraie valeur.",
+      "Ne marque jamais toute une section comme 'toujours valide'. Vérifie claim par claim.",
+      "N'invente jamais une date d'entrée en vigueur ou de renommage. Si la source primaire ne permet pas d'établir la date, écris exactement : date d'évolution non déterminée par la source officielle consultée.",
+      "Si un ancien terme existe encore dans le brouillon, ne demande pas de le remplacer dans le corps source : l'encart doit seulement expliquer la terminologie actuelle.",
+      "Les valeurs ou règles non confirmées par une source primaire ne doivent pas être présentées comme certaines : indique 'vérification non concluante'.",
+    ].join(" "),
+    [
+      `Sujet : ${input.title}`,
+      "",
+      "BROUILLON SOURCE À NE PAS RÉÉCRIRE :",
+      sourceDraft,
+    ].join("\n"),
+    {
+      maxCompletionTokens: 1500,
+      browserSearch: true,
+      temperature: 0.02,
+      reasoningEffort: "low",
+      model: process.env.GROQ_VERIFY_MODEL || "openai/gpt-oss-20b",
+      fallbackModel: "",
+    },
+  );
+
+  return applyVerificationBlocks(sourceDraft, verification);
 }
 
 export async function resourceQuestionWithGroq(input: {
