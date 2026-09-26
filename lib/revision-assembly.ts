@@ -120,6 +120,57 @@ function shortAlertSummary(block: string, status: string) {
   return "- **" + status + "** — " + cleanMain + (source ? " — " + source : "");
 }
 
+function plainSentence(value: string) {
+  return value
+    .replace(/:::update[\s\S]*?:::endupdate/gi, "")
+    .replace(/:::current[\s\S]*?:::endcurrent/gi, "")
+    .replace(/\[[^\]]+\]\([^)]+\)/g, (match) => match.replace(/\[|\]\([^)]+\)/g, ""))
+    .replace(/[|*_#`]/g, "")
+    .replace(/^[-•\d.)\s]+/, "")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function firstUsefulStatements(blocks: string[], max = 3) {
+  const out: string[] = [];
+  const seen = new Set<string>();
+
+  for (const block of blocks) {
+    const lines = stripAlerts(block)
+      .split("\n")
+      .map(plainSentence)
+      .filter((line) => line.length >= 24 && !/^source\s*:/i.test(line));
+
+    for (const line of lines) {
+      const key = normalizeBlock(line);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(line.replace(/[.;:]?$/, "."));
+      if (out.length >= max) return out;
+    }
+  }
+  return out;
+}
+
+function buildIntroduction(title: string, buckets: Record<Bucket, string[]>) {
+  const points = firstUsefulStatements([...buckets.knowledge, ...buckets.method], 2);
+  if (!points.length) {
+    return "Cette fiche présente **" + title + "** de manière structurée afin d’en comprendre les notions essentielles, le fonctionnement et les points de vigilance.";
+  }
+  return "Cette fiche présente **" + title + "** et en pose les repères indispensables. " + points.join(" ");
+}
+
+function buildConclusion(title: string, buckets: Record<Bucket, string[]>) {
+  const explicit = firstUsefulStatements(buckets.takeaway, 3);
+  const fallback = firstUsefulStatements([...buckets.knowledge, ...buckets.method, ...buckets.vigilance], 3);
+  const points = explicit.length ? explicit : fallback;
+  if (!points.length) {
+    return "En conclusion, **" + title + "** repose sur des principes et des méthodes qui doivent être appliqués avec rigueur, en tenant compte des points de vigilance identifiés dans la fiche.";
+  }
+  return "En conclusion, **" + title + "** doit être retenu comme un ensemble cohérent de repères opérationnels. " + points.join(" ");
+}
+
 function takeawayLines(buckets: Record<Bucket, string[]>) {
   const explicit = dedupeBlocks(buckets.takeaway);
   if (explicit.length) return explicit.join("\n\n");
@@ -182,6 +233,9 @@ export function assembleRevisionSheet(title: string, parts: RevisionPart[], loca
   const takeaway = takeawayLines(buckets);
 
   const out: string[] = [
+    "## ✨ Introduction",
+    buildIntroduction(title, buckets),
+    "",
     "## 💡 Le déclic",
     "Cette fiche transforme **" + title + "** en connaissances directement exploitables, avec les actualisations officielles intégrées au fil de la lecture lorsqu’elles sont nécessaires.",
   ];
@@ -213,6 +267,8 @@ export function assembleRevisionSheet(title: string, parts: RevisionPart[], loca
   if (takeaway) {
     out.push("", "## ✅ À retenir", "", takeaway);
   }
+
+  out.push("", "## 🌟 Conclusion", "", buildConclusion(title, buckets));
 
   return out.join("\n").replace(/\n{4,}/g, "\n\n\n").trim();
 }
