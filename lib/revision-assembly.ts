@@ -159,8 +159,6 @@ export function assembleRevisionSheet(title: string, parts: RevisionPart[], loca
   const takeaway = takeawayLines(buckets);
 
   const out: string[] = [
-    "# FICHE PAÏA — " + title,
-    "",
     "## 💡 Le déclic",
     "Cette fiche transforme **" + title + "** en connaissances directement exploitables, avec les actualisations officielles intégrées au fil de la lecture lorsqu’elles sont nécessaires.",
   ];
