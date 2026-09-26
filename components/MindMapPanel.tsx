@@ -30,7 +30,7 @@ function Branch({
   selected: string;
   onSelect: (node: MindMapNode) => void;
 }) {
-  const [open, setOpen] = useState(depth < 2);
+  const [open, setOpen] = useState(false);
   const hasChildren = Boolean(node.children?.length);
 
   return <div className={`mindBranch depth-${Math.min(depth, 4)}`}>
