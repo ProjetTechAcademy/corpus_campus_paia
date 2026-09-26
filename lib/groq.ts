@@ -31,7 +31,15 @@ async function chat(system: string, user: string, options: ChatOptions = {}) {
         max_completion_tokens: options.maxCompletionTokens ?? 2200,
         reasoning_effort: options.reasoningEffort ?? "low",
         include_reasoning: false,
-        messages: [{ role: "system", content: system }, { role: "user", content: user }],
+        messages: [
+          {
+            role: "system",
+            content: options.browserSearch
+              ? system + " IMPORTANT : avant de rédiger la réponse, appelle obligatoirement l'outil browser_search au moins une fois pour vérifier les informations actuelles pertinentes."
+              : system,
+          },
+          { role: "user", content: user },
+        ],
         ...(options.browserSearch ? {
           tool_choice: "required",
           tools: [{ type: "browser_search" }],
