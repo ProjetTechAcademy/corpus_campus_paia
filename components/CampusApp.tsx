@@ -8,6 +8,7 @@ import { piaImages } from "@/lib/pia";
 import { ThemeToggle } from "./ThemeToggle";
 import MindMapPanel, { type MindMapData } from "./MindMapPanel";
 import ResourceQuestionModal from "./ResourceQuestionModal";
+import VoiceInputButton from "./VoiceInputButton";
 
 type Mode = "question" | "documents" | "revision" | "favorites" | "about";
 type Answer = { title: string; summary: string; resources?: ResourceRecommendation[]; sourceTextAvailable?: boolean };
@@ -231,7 +232,7 @@ function QuestionPanel({ locale, saveFavorite }: { locale: Locale; saveFavorite:
   };
 
   return <section className="toolPanel">
-    <form className="questionForm" onSubmit={submit}><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t.searchPlaceholder} /><button disabled={loading}>{loading ? "…" : t.searchButton}</button></form>
+    <form className="questionForm" onSubmit={submit}><span>⌕</span><div className="voiceField"><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t.searchPlaceholder} /><VoiceInputButton locale={locale} onTranscript={(text) => setQuery((current) => current.trim() ? `${current.trim()} ${text}` : text)} /></div><button disabled={loading}>{loading ? "…" : t.searchButton}</button></form>
     <div className="pulseChips"><small>{t.pulse}</small>{pulseNames.map((name) => <button key={name} className={pulse === name ? "active" : ""} onClick={() => setPulse(pulse === name ? "" : name)}>{name}</button>)}</div>
     {error && <p className="notice error">{error}</p>}
     {answer && <article className="resultSheet"><header><span className="eyebrow">{t.answer}</span><h2>{answer.title}</h2><div><button onClick={() => saveFavorite({ kind: "answer", code: answer.title, title: answer.title })}>♡ {t.favoriteAdd}</button><button onClick={() => window.print()}>▣ {t.print}</button></div></header><RichText text={answer.summary} /><CompactSources locale={locale} resources={answer.resources ?? []} /></article>}
