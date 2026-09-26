@@ -32,14 +32,35 @@ function isPrimarySourceUrl(value: string) {
   }
 }
 
+function normalizePaiaAlertMarkers(value: string) {
+  let output = value
+    .replace(/\s*:::update\s*/gi, "\n:::update\n")
+    .replace(/\s*:::current\s*/gi, "\n:::current\n")
+    .replace(/\s*:::endupdate\s*/gi, "\n:::endupdate\n")
+    .replace(/\s*:::endcurrent\s*/gi, "\n:::endcurrent\n");
+
+  output = output.replace(
+    /:::update\s*([\s\S]*?)(?::::endupdate|:::(?!\w))/gi,
+    (_match, body) => "\n:::update\n" + String(body).trim() + "\n:::endupdate\n",
+  );
+  output = output.replace(
+    /:::current\s*([\s\S]*?)(?::::endcurrent|:::(?!\w))/gi,
+    (_match, body) => "\n:::current\n" + String(body).trim() + "\n:::endcurrent\n",
+  );
+
+  return output;
+}
+
 function attachBrowserSources(content: string, tools: GroqExecutedTool[] | undefined) {
-  const results = (tools ?? [])
+  const rawResults = (tools ?? [])
     .flatMap((tool) => tool.search_results?.results ?? [])
-    .filter((item) => item?.url && isPrimarySourceUrl(String(item.url)));
+    .filter((item) => item?.url);
+
+  const primaryResults = rawResults.filter((item) => isPrimarySourceUrl(String(item.url)));
 
   const unique: GroqSearchResult[] = [];
   const seen = new Set<string>();
-  for (const item of results) {
+  for (const item of primaryResults) {
     const url = String(item.url || "");
     if (!url || seen.has(url)) continue;
     seen.add(url);
@@ -47,13 +68,20 @@ function attachBrowserSources(content: string, tools: GroqExecutedTool[] | undef
     if (unique.length >= 8) break;
   }
 
-  let output = content
+  let output = normalizePaiaAlertMarkers(content)
     .replace(/[【〖](\d+)†L\d+(?:-L?\d+)?[】〗]/g, (_match, rawIndex) => {
       const index = Number(rawIndex) - 1;
-      const source = unique[index];
-      return source?.url ? " ([source](" + source.url + "))" : "";
+      const source = rawResults[index];
+      return source?.url && isPrimarySourceUrl(String(source.url))
+        ? " ([source](" + source.url + "))"
+        : "";
     })
     .replace(/\s+([,.;:])/g, "$1");
+
+  output = output.replace(
+    /(\(\[source\]\((https?:\/\/[^)]+)\)\))(?:\s+\1)+/g,
+    "$1",
+  );
 
   if (unique.length) {
     const sourceLines = unique.map((item) => {
