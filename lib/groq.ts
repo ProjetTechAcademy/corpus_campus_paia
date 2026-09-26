@@ -10,6 +10,62 @@ type ChatOptions = {
   fallbackModel?: string;
 };
 
+type GroqSearchResult = { title?: string; url?: string; content?: string; score?: number };
+type GroqExecutedTool = { search_results?: { results?: GroqSearchResult[] } };
+type GroqMessage = { content?: string; executed_tools?: GroqExecutedTool[] };
+
+function isPrimarySourceUrl(value: string) {
+  try {
+    const host = new URL(value).hostname.toLowerCase();
+    const suffixes = [
+      "gouv.fr", "service-public.fr", "legifrance.gouv.fr", "urssaf.fr", "boss.gouv.fr",
+      "ameli.fr", "net-entreprises.fr", "insee.fr", "cnil.fr", "cyber.gouv.fr",
+      "europa.eu", "francetravail.fr", "impots.gouv.fr",
+      "atlassian.com", "microsoft.com", "google.com", "github.com", "docker.com",
+      "python.org", "postgresql.org", "w3.org", "mozilla.org", "react.dev", "nextjs.org",
+      "vercel.com", "qdrant.tech", "neon.tech", "nodejs.org", "openai.com", "groq.com",
+      "sap.com", "adp.com", "cegid.com", "workday.com",
+    ];
+    return suffixes.some((suffix) => host === suffix || host.endsWith("." + suffix));
+  } catch {
+    return false;
+  }
+}
+
+function attachBrowserSources(content: string, tools: GroqExecutedTool[] | undefined) {
+  const results = (tools ?? [])
+    .flatMap((tool) => tool.search_results?.results ?? [])
+    .filter((item) => item?.url && isPrimarySourceUrl(String(item.url)));
+
+  const unique: GroqSearchResult[] = [];
+  const seen = new Set<string>();
+  for (const item of results) {
+    const url = String(item.url || "");
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    unique.push(item);
+    if (unique.length >= 8) break;
+  }
+
+  let output = content
+    .replace(/[【〖](\d+)†L\d+(?:-L?\d+)?[】〗]/g, (_match, rawIndex) => {
+      const index = Number(rawIndex) - 1;
+      const source = unique[index];
+      return source?.url ? " ([source](" + source.url + "))" : "";
+    })
+    .replace(/\s+([,.;:])/g, "$1");
+
+  if (unique.length) {
+    const sourceLines = unique.map((item) => {
+      const label = String(item.title || "Source primaire").replace(/[\r\n]+/g, " ").trim();
+      return "Source officielle : [" + label + "](" + item.url + ")";
+    });
+    output += "\n\n" + sourceLines.join("\n");
+  }
+
+  return output.trim();
+}
+
 async function chat(system: string, user: string, options: ChatOptions = {}) {
   const apiKey = process.env.GROQ_API_KEY || "";
   if (!apiKey) throw new Error("GROQ_NOT_CONFIGURED");
@@ -53,8 +109,12 @@ async function chat(system: string, user: string, options: ChatOptions = {}) {
       });
 
       if (response.ok) {
-        const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-        const content = data.choices?.[0]?.message?.content?.trim() || "";
+        const data = await response.json() as { choices?: Array<{ message?: GroqMessage }> };
+        const message = data.choices?.[0]?.message;
+        const rawContent = message?.content?.trim() || "";
+        const content = options.browserSearch
+          ? attachBrowserSources(rawContent, message?.executed_tools)
+          : rawContent;
         if (content) return content;
         lastError = `GROQ_EMPTY_CONTENT:${model}`;
         if (attempt === 0) continue;
