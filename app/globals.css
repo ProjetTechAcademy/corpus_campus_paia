@@ -167,8 +167,8 @@ footer{padding:22px 0;background:linear-gradient(110deg,var(--deep),#342b50);col
 .richText a{color:var(--royal);font-weight:700;text-underline-offset:3px}
 .richAlert{margin:18px 0;padding:16px 18px;border-radius:14px;border-left:5px solid var(--gold-dark);box-shadow:0 8px 22px rgba(13,38,65,.07)}
 .richAlert p{margin:5px 0}
-.richAlert.update{background:#fff9dc;border-color:#c83b4d;color:#7d1f2d}
-.richAlert.update strong{color:#a52335}
+.richAlert.update{background:#fff9dc;border-color:#c83b4d;color:#7d1f2d;font-style:italic}
+.richAlert.update strong{color:#a52335;font-weight:850}
 .richAlert.update em{font-weight:700}
 .richAlert.current{background:#edf9f2;border-color:#2f8f63;color:#235a45}
 [data-theme="dark"] .richAlert.update{background:#463719;color:#ffe6a5}
