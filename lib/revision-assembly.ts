@@ -50,6 +50,16 @@ function normalizeBlock(value: string) {
   return value.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
+function normalizeAlertPresentation(value: string) {
+  return value
+    .replace(/\s*:::update\s*/gi, "\n:::update\n")
+    .replace(/\s*:::endupdate\s*/gi, "\n:::endupdate\n")
+    .replace(/\s*:::current\s*/gi, "\n:::current\n")
+    .replace(/\s*:::endcurrent\s*/gi, "\n:::endcurrent\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function dedupeBlocks(values: string[]) {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -83,7 +93,11 @@ function collectOfficialSources(text: string) {
   const sources: string[] = [];
   for (const line of lines) {
     if (/source officielle/i.test(line) || /https?:\/\//i.test(line)) {
-      const clean = line.replace(/^[-•]\s*/, "").trim();
+      const clean = line
+        .replace(/^[-•]\s*/, "")
+        .replace(/:::end(?:update|current)/gi, "")
+        .replace(/:::+\s*$/g, "")
+        .trim();
       if (clean) sources.push(clean);
     }
   }
@@ -173,7 +187,7 @@ export function assembleRevisionSheet(title: string, parts: RevisionPart[], loca
   ];
 
   const pushSection = (heading: string, blocks: string[]) => {
-    const clean = dedupeBlocks(blocks);
+    const clean = dedupeBlocks(blocks).map(normalizeAlertPresentation);
     if (!clean.length) return;
     out.push("", heading, "", clean.join("\n\n"));
   };
