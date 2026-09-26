@@ -49,19 +49,19 @@ function Branch({
   </div>;
 }
 
-export default function MindMapPanel({ data, onClose }: { data: MindMapData; onClose: () => void }) {
+export default function MindMapPanel({ data, onClose, standalone = false }: { data: MindMapData; onClose: () => void; standalone?: boolean }) {
   const [selectedNode, setSelectedNode] = useState<MindMapNode>(data.root);
   const total = useMemo(() => countNodes(data.root), [data]);
 
-  return <div className="overlayShell" role="dialog" aria-modal="true" aria-label="Carte mentale">
-    <section className="premiumModal mindMapModal">
+  return <div className={standalone ? "standaloneMindMapShell" : "overlayShell"} role="dialog" aria-modal={!standalone} aria-label="Carte mentale">
+    <section className={standalone ? "mindMapStandaloneCard" : "premiumModal mindMapModal"}>
       <header className="premiumModalHeader">
         <div>
           <span className="eyebrow">CARTE MENTALE INTERACTIVE</span>
           <h2>{data.title}</h2>
           <p>{total} repères • Cliquez sur un nœud pour l’explorer, +/− pour déplier les branches.</p>
         </div>
-        <button className="modalClose" onClick={onClose} type="button" aria-label="Fermer">×</button>
+        {!standalone && <button className="modalClose" onClick={onClose} type="button" aria-label="Fermer">×</button>}
       </header>
       <div className="mindMapWorkspace">
         <div className="mindCanvas">
