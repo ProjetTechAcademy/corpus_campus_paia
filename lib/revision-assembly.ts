@@ -90,6 +90,14 @@ function collectOfficialSources(text: string) {
   return dedupeBlocks(sources);
 }
 
+function stripOfficialSourceLines(text: string) {
+  return text
+    .split("\n")
+    .filter((line) => !/source officielle\s*:/i.test(line))
+    .join("\n")
+    .trim();
+}
+
 function shortAlertSummary(block: string, status: string) {
   const lines = block.split("\n").map((line) => line.trim()).filter(Boolean);
   const source = lines.find((line) => /source officielle/i.test(line) || /https?:\/\//i.test(line));
@@ -145,7 +153,8 @@ export function assembleRevisionSheet(title: string, parts: RevisionPart[], loca
   for (const part of ordered) {
     for (const section of splitPart(part.content)) {
       const bucket = bucketForHeading(section.heading) || "knowledge";
-      buckets[bucket].push(section.body);
+      const body = stripOfficialSourceLines(section.body);
+      if (body) buckets[bucket].push(body);
     }
   }
 
