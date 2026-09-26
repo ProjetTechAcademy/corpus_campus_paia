@@ -466,7 +466,11 @@ function ResourcePicker({ locale, mode, saveFavorite }: { locale: Locale; mode: 
         <button className="ghost" onClick={() => saveFavorite({ kind: "resource", code: resource.resourceCode, title: resource.title })} title={locale === "fr" ? "Ajouter aux favoris" : "Add to favorites"}>♡</button>
         {resource.platformUrl && <a href={resource.platformUrl} target="_blank" rel="noreferrer" title={locale === "fr" ? "Ouvrir la source autorisée" : "Open source link"}>↗ {locale === "fr" ? "Source" : "Source"}</a>}
         <button className="primary" onClick={() => generateRevision(resource)} disabled={generating === resource.resourceCode}>{generating === resource.resourceCode ? "…" : (locale === "fr" ? "📄 Fiche PAÏA" : "📄 PAÏA Sheet")}</button>
-        <button onClick={() => generateMindMap(resource)} disabled={mindMapLoading === resource.resourceCode}>{mindMapLoading === resource.resourceCode ? "…" : (locale === "fr" ? "🧠 Carte mentale" : "🧠 Mind map")}</button>
+        <button
+          onClick={() => window.open(`/carte-mentale?resourceCode=${encodeURIComponent(resource.resourceCode)}&locale=${locale}`, "_blank", "noopener,noreferrer")}
+          title={locale === "fr" ? "Ouvrir la carte mentale dans un nouvel onglet" : "Open mind map in a new tab"}
+          aria-label={locale === "fr" ? "Ouvrir la carte mentale dans un nouvel onglet" : "Open mind map in a new tab"}
+        >🧠</button>
         <button className="questionAction" onClick={() => setQuestionResource(resource)} title={locale === "fr" ? "Poser une question sur ce sujet" : "Ask about this topic"}>?</button>
       </span></div>) : <p className="notice">{t.noResources}</p>}</div>}
     </>}
