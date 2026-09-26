@@ -232,3 +232,13 @@ var(--soft)}
 .revisionProgressTrack span{display:block;height:100%;min-width:6%;border-radius:999px;background:linear-gradient(90deg,var(--gold),var(--fuchsia),var(--purple));transition:width .45s ease}
 .revisionProgress small{display:block;color:var(--muted);font-size:12px}
 [data-theme="dark"] .revisionProgress{background:linear-gradient(135deg,#18354d,#1d2f48)}
+
+
+/* Dictée vocale — accessibilité */
+.voiceField{position:relative;display:flex;align-items:center;min-width:0;flex:1}
+.voiceField input,.voiceField textarea{width:100%;padding-right:48px!important}
+.voiceInputButton{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;background:var(--surface);color:var(--blue);cursor:pointer;font-size:16px;box-shadow:0 4px 12px rgba(13,38,65,.08)}
+.voiceInputButton:hover{border-color:var(--gold);transform:translateY(-50%) scale(1.03)}
+.voiceInputButton.listening{background:#fff1f3;border-color:#c83b4d;color:#a52335;animation:voicePulse 1.2s ease-in-out infinite}
+.voiceInputButton:disabled{cursor:not-allowed;opacity:.4}
+@keyframes voicePulse{0%,100%{box-shadow:0 0 0 0 rgba(200,59,77,.18)}50%{box-shadow:0 0 0 8px rgba(200,59,77,0)}}
