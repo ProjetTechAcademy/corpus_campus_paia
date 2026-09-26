@@ -13,9 +13,14 @@ export async function ensureRevisionParts() {
       attempts integer NOT NULL DEFAULT 0,
       last_error text,
       generated_at timestamptz,
+      format_version integer NOT NULL DEFAULT 1,
       updated_at timestamptz NOT NULL DEFAULT now(),
       PRIMARY KEY (resource_code, part_index)
     )
+  `);
+  await getPool().query(`
+    ALTER TABLE campus_paia.resource_revision_parts
+    ADD COLUMN IF NOT EXISTS format_version integer NOT NULL DEFAULT 1
   `);
   await getPool().query(`
     CREATE INDEX IF NOT EXISTS idx_resource_revision_parts_status
@@ -26,6 +31,14 @@ export async function ensureRevisionParts() {
 export async function prepareRevisionParts(resourceCode: string, groupsPerPart = 3) {
   await ensureRevisionParts();
   await ensureRevisionGroups();
+  await getPool().query(
+    `
+      UPDATE campus_paia.resource_revision_parts
+      SET content='', status='pending', attempts=0, last_error=NULL, generated_at=NULL, format_version=2, updated_at=now()
+      WHERE resource_code=$1 AND format_version < 2
+    `,
+    [resourceCode],
+  );
   const groups = await revisionGroupStatus(resourceCode);
   if (!groups.total || groups.done !== groups.total) return { ready: false, groups };
 
@@ -114,7 +127,7 @@ export async function completeRevisionPart(resourceCode: string, partIndex: numb
   await getPool().query(
     `
       UPDATE campus_paia.resource_revision_parts
-      SET content=$3, status='done', last_error=NULL, generated_at=now(), updated_at=now()
+      SET content=$3, status='done', last_error=NULL, generated_at=now(), format_version=2, updated_at=now()
       WHERE resource_code=$1 AND part_index=$2
     `,
     [resourceCode, partIndex, safe],
